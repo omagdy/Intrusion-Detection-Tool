@@ -68,7 +68,7 @@ try:
     # Get target task object
     target_task = get_task(addr_space, profile, target_pid)
     if(not target_task):
-        print("Task with PID {} not found!")
+        print("Task with PID {} not found!".format(target_pid))
         sys.exit()
 
     # Get a task with root permissions, PID 1 is reliably root always
