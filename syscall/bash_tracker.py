@@ -94,7 +94,7 @@ def check_for_user_input(trace):
 		pid = trace['pid']
 		fd = trace['fd']
 		for u in TRACKED_USERS:
-			if u.uid == uid and (u.bash_pid==pid and fd==2) or (pid in u.bash_clone_pid):
+			if u.uid == uid and ((u.bash_pid==pid and fd==2) or (pid in u.bash_clone_pid)):
 				line = trace['buf'].decode('unicode-escape')
 				u.write_to_log_file(line)
 				sys.stdout.write(line)
