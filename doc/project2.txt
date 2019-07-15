@@ -19,6 +19,6 @@ The functions in the main loop check whether each trace added to LogFile.txt by 
 
 Bonus Question for task 3:
 
-The attacker can easily use a tool similar to screen which does not create a process that is the child of bash similar to say python but instead it makes a ui interface that creates a daemon which has no terminal associated with it and will have its own subprocess that could be linked to systemd. Even when the ui interface is terminated, the subprocess will remain on working and will not be detected by the tool which is searching for bash processes that are children of sshds processes.
+The attacker can easily use a tool similar to screen which does not create a process that is the child of bash similar to say python but instead it makes a ui interface that creates a daemon which has no terminal associated with it and will have its own subprocess that could be linked to systemd. Even when the ui interface is terminated, the subprocess will remain on working and will not be detected by the tool which is searching for bash processes that are children of sshds processes. The attacker can disconect anytime and the subprocess will keep on working and will allow him to reconnect it any time later.
 
 The proper countermeasure would be to use a tool similar to the one in task 1 that will detect any new created processes that pop up at the same time when the interface that can be linked to the user is created. The pid of such processes should be stored and its syscall traces should be tracked.
