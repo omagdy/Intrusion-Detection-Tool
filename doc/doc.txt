@@ -1,2 +1,20 @@
 Group Number : 20
 Group Members : Omar Hussein (90803), Ahmer Ali (87627)
+
+
+Task 3:
+
+The aim of task 3 is to show the bash interactions of a certain suspected user. The "syscall" tool does this by tracking the syscall trace of the suspected user's bash process; the bash's pid is also used to differntiate between different users who might use the same uid. 
+
+When the tool starts, it uses the volatility tool to detect if a user has already been sshing to the machine once the syscall tool starts. After getting all already sshed users, the syscall tool starts the libvimtrace program for tracing all system calls in the wordpress and dumping all of them in a logfile called "LogFile.txt". Then the program enters its main loop where it will keep on looping until the tool's user stops it upon which it will stop the libvimtrace program before exiting to avoid any issues later when restarting it.
+
+In the main loop, the tool will keep on searching the "LogFile.txt" for any new system call traces added by the libvimtrace. The trace is analyzed by a number of functions to check whether it is a result of any user's activity so that it can be recorded. All users that are sshing are saved in a list and are removed from it once they logout.
+
+The functions in the main loop check whether each trace added to LogFile.txt by libvimtrace is one of the following and acts accordingly:
+(1). A new sshed user logging in: It creates a new user object and adds him to list of tracked people. The detection mechanism is if the syscall trace is a syscall execute and the process that is exectued is "/bin/bash". The syscall trace will also contain all information of a user object such as name, ip etc.
+(2). A user logs out of his ssh connection: It removes the user's object from TRACKED_USERS and destroys it. The detection mechanism is if the syscall trace is a syscall wait with parent being sshd and the bash being the user's bash pid which signals that the bash process is about to be terminated.
+(3). A user is using a prcoess such as python, top: It saves the pid of the process that was run to the user's list of bash child processes. The detection mechanism is a syscall clone/fork done by the user's bash pid.
+(4). Input to bash from user or a process: It prints the input and writes it to the logfile of the user. The detection mechanism is a syscall execution of a user's bash or one of its children. User's input is differentiated from a process's input.
+(5). User process end: It removes the process from the users bash child processes. The detection mechanism is a syscall wait with parent being user's bash and child being the process.
+
+

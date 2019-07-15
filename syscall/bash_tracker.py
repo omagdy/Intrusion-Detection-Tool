@@ -12,7 +12,7 @@ import signal
 GLOBAL_SUB_PROCESS = ''
 TRACKED_USERS=[]
 
-class Suspeced_user:
+class SuspectedUser:
 
 	def __init__(self, uid, sshd_pid='0', bash_pid='0', name='', ip='', bash_clone_pid=[]):
 		self.name = name
@@ -21,6 +21,7 @@ class Suspeced_user:
 		self.bash_pid = bash_pid
 		self.ip = ip
 		self.bash_clone_pid=bash_clone_pid
+		self.prev_buf_was_output=True
 
 	def print_login(self):
 		print('User '+self.name+' is sshing to the Wordpress from '+self.ip+'. His uid is '+str(self.uid)+'. His bash pid is '+str(self.bash_pid))
@@ -37,24 +38,19 @@ class Suspeced_user:
 		f.write(bash_data)
 		f.close()
 
+	def create_log_file(self):
+		here = os.path.dirname(os.path.realpath(__file__))
+		subdir = "logs"
+		filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
+		filepath = os.path.join(here, subdir, filename)
+		f=open(filepath,"a")
+		f.write('New ssh connection from '+self.ip+'\n')
+		f.close()
 		
-def signal_handler(sig, frame):
+
+def exit_the_tool(sig, frame):
 	stop_libvmtrace()
 	sys.exit(0)
-
-
-# def check_for_user_logout(trace):
-# 	if trace['syscall_nr']!=59 or trace['proc_name']!='bash':
-# 		return
-# 	if trace['path']=="/usr/bin/clear_console":
-# 		exit_process_pid = trace['pid']
-# 		uid = trace['uid']
-# 		for u in TRACKED_USERS:
-# 			if u.uid == uid and exit_process_pid in u.bash_clone_pid:
-# 				TRACKED_USERS.remove(u)
-# 				u.print_logout()
-# 				del u
-# 				return
 
 
 def check_for_user_logout(trace):
@@ -81,9 +77,10 @@ def check_for_new_sshed_users(trace):
 				name = re.search('=(.+)$', x).group(1)
 			if 'SSH_CLIENT=' in x:
 				ip = re.search('=(.+)$', x).group(1)
-		user = Suspeced_user(uid, name=name, ip=ip, bash_pid=pid)
+		user = SuspectedUser(uid, name=name, ip=ip, bash_pid=pid)
 		TRACKED_USERS.append(user)
 		user.print_login()
+		user.create_log_file()
 
 
 def check_for_user_input(trace):
@@ -94,11 +91,26 @@ def check_for_user_input(trace):
 		pid = trace['pid']
 		fd = trace['fd']
 		for u in TRACKED_USERS:
-			if u.uid == uid and ((u.bash_pid==pid and fd==2) or (pid in u.bash_clone_pid)):
+			if u.uid == uid and ((u.bash_pid==pid and fd in [1,2]) or (pid in u.bash_clone_pid)):
 				line = trace['buf'].decode('unicode-escape')
-				u.write_to_log_file(line)
-				sys.stdout.write(line)
-				sys.stdout.flush()
+				if trace['size']==1 and u.prev_buf_was_output and trace['buf']!="\\u0008\\u001b[K":
+					u.write_to_log_file('> '+line)
+					sys.stdout.write('> '+line)
+					sys.stdout.flush()
+					u.prev_buf_was_output=False
+				elif trace['size']==1 and not u.prev_buf_was_output and trace['buf']!="\\u0008\\u001b[K":
+					u.write_to_log_file(line)
+					sys.stdout.write(line)
+					sys.stdout.flush()
+				elif not u.prev_buf_was_output and trace['buf']=="\\u0008\\u001b[K":
+					u.write_to_log_file(line)
+					sys.stdout.write(line)
+					sys.stdout.flush()					
+				else:
+					u.write_to_log_file(line)
+					sys.stdout.write(line)
+					sys.stdout.flush()
+					u.prev_buf_was_output=True
 				return
 
 def check_for_user_process_creation(trace):
@@ -122,7 +134,7 @@ def check_for_user_process_end(trace):
 					return
 
 
-def search_for_suspected_users():
+def main_loop():
 	while(not os.path.exists('LogFile.txt')):
 		pass
 	f=open('LogFile.txt','r')
@@ -168,7 +180,7 @@ def run_vol_ps_aux():
 		name = re.search(' (\w+)@',trace_string).group(1)
 		sshd_pid = re.search('^(\d+) ',trace_string).group(1)
 		uid = re.search('\s(\d+)\s',trace_string).group(1)
-		user = Suspeced_user(int(uid), int(sshd_pid), name=name)
+		user = SuspectedUser(int(uid), int(sshd_pid), name=name)
 		TRACKED_USERS.append(user)
 
 
@@ -195,6 +207,7 @@ def run_vol_ps_netstat(user):
 	p = p.split(" ")[2]
 	user.ip = p
 	user.print_login()
+	user.create_log_file()
 
 
 try:
@@ -205,10 +218,10 @@ except IndexError as e:
 subprocess.call(['umount', '/mnt'], stderr=subprocess.STDOUT)
 subprocess.call(['vmifs', 'name', pvm_id, '/mnt'], stderr=subprocess.STDOUT)
 
-signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGINT, exit_the_tool)
 
 start_libvmtrace(pvm_id)
 check_for_already_logged_users()
-search_for_suspected_users()
+main_loop()
 
 
