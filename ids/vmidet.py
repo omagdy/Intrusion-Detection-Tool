@@ -3,6 +3,7 @@ import time
 import sys
 import paramiko
 import argparse
+from multiprocessing.pool import ThreadPool
 
 
 PROCESSES = { 
@@ -61,14 +62,21 @@ def status_comparison(previous_entries, current_entries):
 def fill_initial_entries(ssh=False):
 
 	if ssh:
-		C_PROCESSES = SSH_PROCESSES
+		C_PROCESSES = SSH_PROCESSES.keys()
 		C_PROCESSES_PREVIOUS_STATUS = SSH_PROCESSES_PREVIOUS_STATUS
 	else:
 		C_PROCESSES = PROCESSES
 		C_PROCESSES_PREVIOUS_STATUS = PROCESSES_PREVIOUS_STATUS
 
-	for process in C_PROCESSES.keys():
-		intial_entry = run_process(process, ssh)
+	# Execute commands in threads for better speed
+	pool = ThreadPool(processes=len(C_PROCESSES))
+	async_processes = dict()
+	for process in C_PROCESSES:
+		async_processes[process] = pool.apply_async(run_process, (process, ssh))
+
+	# Fetch results for async processes
+	for process, async_res in async_processes.iteritems():
+		intial_entry = async_res.get()
 		C_PROCESSES_PREVIOUS_STATUS[process] = intial_entry
 
 
@@ -81,8 +89,15 @@ def print_change_in_entries(ssh=False):
 		C_PROCESSES_PREVIOUS_STATUS = PROCESSES_PREVIOUS_STATUS
 		C_PROCESSES = PROCESSES
 
-	for process in C_PROCESSES.keys():
-		current_status = run_process(process, ssh)
+	# To execute commands in threads for better speed
+	pool = ThreadPool(processes=len(C_PROCESSES.keys()))
+	async_processes = dict()
+	for process in C_PROCESSES:
+		async_processes[process] = pool.apply_async(run_process, (process, ssh))
+
+	# Fetch async results and perform comparisons
+	for process, async_res in async_processes:
+		current_status = async_res.get()
 		missing_entries, new_entries = status_comparison(C_PROCESSES_PREVIOUS_STATUS[process], current_status)
 		print("{}: ".format(C_PROCESSES[process]))
 		if missing_entries or new_entries:
@@ -98,7 +113,7 @@ def print_change_in_entries(ssh=False):
 # Parse required input arguments
 parser = argparse.ArgumentParser(
     description='UidChanger arguments')
-parser.add_argument('-n','--name', help='Input target VM name "one-<id>"', required=True)
+parser.add_argument('-n','--name', help='Input target VM name "one-<id>"/ Set value to "ssh" for ssh execution instead of volatility', required=True)
 parser.add_argument('-r','--runinterval', help='Wait time between repeated command executions (seconds)', required=True, type=int)
 args = parser.parse_args()
 # print (args)
