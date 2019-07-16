@@ -1,8 +1,24 @@
 Group Number : 20
 Group Members : Omar Hussein (90803), Ahmer Ali (87627)
 
+Task 1:
+=======
+
+Task 2:
+=======
+
+	The goal of this task is to modify privileges of a running task with a given PID to root. We do this by borrowing the pointer to credentials of a task which is already root and assigning it to our target task. The details are as follows:
+
+	Linux stores tasks in a linked list of "task_struck" objects. Each of these structures have an objective pointer "real_cred" and a subjective pointer "cred", both of these point to credentials object of type "cred". 
+		
+		- task_struct->real_cred: points to objective context used when task is acted upon
+		- task_struct->cred: points to subject context used when task is acting upon another object
+
+	Using volatility as a library in python, we have the capability to load task objects from PIDs. These objects have all the "task_struck" attributes including "real_cred" and "cred". We load init_task object from the system with PID=1 which is known to be running as root always. Then we obtain physical addresses of its credentials pointers. We do the same process for the target task and obtain its physical addresses for credentials pointers. Then we use libvmi to overwrite values stored in physical addresses of "real_cred" and "cred" of the target task with the corresponding values of the init_task. After this it can be verified in the target system that the target task is now running as root.
+
 
 Task 3:
+=======
 
 The aim of task 3 is to show the bash interactions of a certain suspected user. The "syscall" tool does this by tracking the syscall trace of the suspected user's bash process; the bash's pid is also used to differntiate between different users who might use the same uid. 
 
