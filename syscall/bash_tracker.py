@@ -93,16 +93,16 @@ def check_for_user_input(trace):
 		for u in TRACKED_USERS:
 			if u.uid == uid and ((u.bash_pid==pid and fd in [1,2]) or (pid in u.bash_clone_pid)):
 				line = trace['buf'].decode('unicode-escape')
-				if trace['size']==1 and u.prev_buf_was_output and trace['buf']!="\\u0008\\u001b[K":
+				if trace['size']==1 and u.prev_buf_was_output and trace['buf'] not in ["\\u0008\\u001b[K", "    "]:
 					u.write_to_log_file('> '+line)
 					sys.stdout.write('> '+line)
 					sys.stdout.flush()
 					u.prev_buf_was_output=False
-				elif trace['size']==1 and not u.prev_buf_was_output and trace['buf']!="\\u0008\\u001b[K":
+				elif trace['size']==1 and not u.prev_buf_was_output and trace['buf'] not in ["\\u0008\\u001b[K", "    "]:
 					u.write_to_log_file(line)
 					sys.stdout.write(line)
 					sys.stdout.flush()
-				elif not u.prev_buf_was_output and trace['buf']=="\\u0008\\u001b[K":
+				elif not u.prev_buf_was_output and trace['buf'] in ["\\u0008\\u001b[K", "    "]:
 					u.write_to_log_file(line)
 					sys.stdout.write(line)
 					sys.stdout.flush()					
