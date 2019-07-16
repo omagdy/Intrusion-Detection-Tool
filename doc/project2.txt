@@ -7,7 +7,7 @@ Task 1:
 	Part (a)
 	--------
 
-		The goal is to build an intrusion detection software using virtual machine introspection. The software should be able to monitor system processes, kernel modules including hidden and network connections. We do this using a python script that executes volatility plugins via subprocess calls repeatedly. The results for each plugin are compared to the last exection and any differences are printed out. This captures any events starting or ending. Following volatility plugins are executed:
+		The goal is to build an intrusion detection software using virtual machine introspection. The software should be able to monitor system processes, kernel modules including hidden ones and network connections. We do this using a python script that executes volatility plugins via subprocess calls repeatedly. The results for each plugin are compared to the last exection and any differences are printed out. This captures any events starting or ending. Following volatility plugins are executed:
 
 			- linux_psaux: Prints a list of running processes
 			- linux_pstree: Prints a list of running processes in tree format
@@ -24,7 +24,8 @@ Task 1:
 				-n NAME, --name NAME  Input target VM name "one-<id>"/ Set value to "ssh" for ssh execution instead of volatility
 			    -r RUNINTERVAL, --runinterval RUNINTERVAL Wait time between repeated command executions (seconds)
 
-			Example: >> python vmidet.py -n 46903 -r 5
+			Example: >> python vmidet.py -n one-46903 -r 5
+			Example: >> python vmidet.py -n ssh -r 5 (for running ssh instead of volatility)
 
 
 	Part (b)
@@ -32,29 +33,29 @@ Task 1:
 
 		This task requires us to initate an attack on our wordpress vm using provided instructions and then provide an analysis of the attack using observed events. A copy of detected events after the attack is available in file "ids/attack_files/attack_events.txt". A squence of events is observed after the attack the details of which are as follows:
 
-			- First of all three new apache2 processes appear in process list and a in network list a few tcp connections appear with PIDs correponding to the new apache2 processes
-			- A few seconds later in the next loop of the tool, three new processes appear which are a part of the process tree of one of the apache2 processes. These processes are a python command which a part of the subtree of one of the apache2 processes started earlier
+			- First of all, three new apache2 processes appear in process list and in network list a few tcp connections appear with PIDs correponding to the new apache2 processes
+			- A few seconds later in the next loop of the tool, three new processes appear which are a part of the process tree of one of the apache2 processes. These processes are a python command which is a part of the subtree of one of the apache2 processes started earlier
 			- Three new tcp connections appear, one for each of the new processes. Only one has an established connection belonging to "__rtbot.py" file. There are also two new unix sockets detected.
 			- A few seconds later, a hidden module named "rt" is detected
 
 		Obeservations:
 
-			- The apache2 process is somehow able to bring in a milicious python "__rtbot.py" file 
-			- The command is able to run as root user. It can be observed from process list that the executed command is using sudo which is successful. This is possible because the user running apache2 "www-data" has permission to execute sudo without requiring password which is a big vulnerability.
-			- This file is establishing an open tcp connection. 
+			- The apache2 process is somehow able to bring in a malicious python "__rtbot.py" file 
+			- The command is able to run as root user. It can be observed from process list that the executed command is using sudo which is successful. This is possible because the user running apache2 "www-data" has permission to execute sudo without requiring password which is a big vulnerability
+			- This file is establishing an open tcp connection
 			- This file also seems to be executing on memory and is not stored on disk
 			- A hidden module called "rt" is created by the malicious file
 
 		Detailed analysis:
 
-			We performed a detailed analysis of the observed attack and discovered that this attack was performed by Metasploit Penetration Testing Framework which exploited a plugin "website-contact-form-with-file-upload" installed in wordpress. The plugin is outdated and vulnerable. There are also other vulnerabilies in the wordpress installation which can easily be discovered using "wpscan", a penetration testing tool for wordpress.
+			We performed a detailed analysis of the observed attack and discovered that this attack was performed by Metasploit Penetration Testing Framework which exploited a wordpress plugin "website-contact-form-with-file-upload" installed in wordpress. The plugin is outdated and vulnerable. There are also other vulnerabilies in the wordpress installation which can easily be discovered using "wpscan", a penetration testing tool for wordpress.
 
-			Details of the steps performed during this analysis are logged in file "ids/attack_files/analysis_log.txt". Following is an overview of the process:
+			Details of the steps performed during this analysis, as well as wpscan results, are logged in file "ids/attack_files/analysis_log.txt". Following is an overview of the process:
 
 			- Apache logs reveal a post request from attacker's IP which is found to be a file upload request. The file cannot be found since its being deleted
-			- Wordpress code is modified to save a copy of the file. It can be seen at "ids/attack_files/malicious_upload.php"
-			- The php code in uploaded file is opening a socket client session to receive more data. We run a modified copy of the file to capture the payload being sent as soon as the socket connection is established during attack
-			- The discovered payload file can be seen at "ids/attack_files/malicious_socket_payload.php". A quick google search of the parts of code reveals it to be "bind_tcp" payload of "meterpreter" module of Metasploit.
+			- We modify Wordpress code to save a copy of the file. It can be seen at "ids/attack_files/malicious_upload.php"
+			- The php code in uploaded file is opening a socket client session to receive more data. We run a modified copy of the file to capture the payload being sent as soon as the socket connection is established during the attack
+			- The discovered payload file can be seen at "ids/attack_files/malicious_socket_payload.php". A quick google search of parts of this code reveals it to be "bind_tcp" payload of "meterpreter" module of Metasploit.
 			- It can be assumed that the tcp access granted by the payload file is allowing the attacker the capabily to run the malicious python script with root privileges
 
 			We were also able to successfully replicate the attack using Metasploit. A log of this process is available in "ids/attack_files/metasploit_attack.txt"
@@ -62,7 +63,7 @@ Task 1:
 	Part (c)
 	--------
 
-		This task required us to report any of the hidden artefacts of the attack which are observable from the attacked system itself using built in commands. Our analysis tool from part (a) can be run with string "ssh" instead of vm name. This makes the script to make ssh connection with the vm and execute built in commands and report differences from last executions. The commands run are:
+		This task required us to report any of the hidden artefacts of the attack which are observable from the attacked system itself using built in commands. Our analysis tool from part (a) can be run with string "ssh" instead of vm name. This makes the script establishes ssh connection with the vm and executes built in commands and reports differences compared to last executions. The commands run are:
 
 			- ps aux
 			- pstree
@@ -76,14 +77,16 @@ Task 1:
 			- netstat -tap is able to detect the following tcp connections from the attacker but cannot report PIDs
 
 				tcp       72      0 wordpress:59481         192.168.13.19:4444      CLOSE_WAIT  -         
-				tcp        0      0 wordpress:60207         192.168.13.19:ircd      ESTABLISHED -               
+				tcp        0      0 wordpress:60207         192.168.13.19:ircd      ESTABLISHED -   
+
+		It can be stated that the information observed directly on the wordpress system is not enough to conclude that this was a malicious attack.            
 
 Task 2:
 =======
 
 	The goal of this task is to modify privileges of a running task with a given PID to root. We do this by borrowing the pointer to credentials of a task which is already root and assigning it to our target task. The details are as follows:
 
-	Linux stores tasks in a linked list of "task_struck" objects. Each of these structures have an objective pointer "real_cred" and a subjective pointer "cred", both of these point to credentials object of type "cred". 
+	Linux stores tasks in a linked list of "struct task_struck" objects. Each of these structures have an objective pointer "real_cred" and a subjective pointer "cred", both of these point to credentials object of type "struct cred". 
 		
 		- task_struct->real_cred: points to objective context used when task is acted upon
 		- task_struct->cred: points to subject context used when task is acting upon another object
@@ -107,12 +110,12 @@ Task 2:
 
 		- Attacker with root access: An attacker can run a script to detect privilege escalatoin using methods such as following:
 
-			- Periodicall checking process list to detect any changes to credentials of running tasks
+			- Periodically checking process list to detect any changes to credentials of running tasks
 			- Using credential sharing detection using same method as volatility plugin "linux_check_creds"
 
-		Once such process process with escalated privileges has been detected, the attacker can kill or modify the process.
+		Once such a process process with escalated privileges has been detected, the attacker can kill or modify the process.
 
-		- Countermeasure: From the perspective of the monitoring system who escalated privileges of the target process, any further change to this process will indicate the some attacker has root access to the system since the process was running as root after privilege escalation and could only be modified by root users. In such a case, the monitor can check for suspicious sshd, tcp or any other processes linked to intruding attacker and take steps to deny root privileges and access to the system to the attacker. In general, given any hint of attacker having root access to the system, the system to be turned off to prevent any malicious usage.
+		- Countermeasure: From the perspective of the monitoring system who escalated privileges of the target process, any further change to this process will indicate that some attacker has root access to the system since the process was running as root after privilege escalation and could only be modified by root users. In such a case, the monitor can check for suspicious sshd, tcp or any other processes linked to intruding attacker and take steps to deny root privileges and access to the system to the attacker. In general, given any hint of attacker having root access to the system, the system should be turned off to prevent any malicious usage.
 
 
 
@@ -121,20 +124,25 @@ Task 3:
 
 	The aim of task 3 is to show the bash interactions of a certain suspected user. The "syscall" tool does this by tracking the syscall trace of the suspected user's bash process; the bash's pid is also used to differntiate between different users who might use the same uid. 
 
-	When the tool starts, it uses the volatility tool to detect if a user has already been sshing to the machine. After getting all the already sshed users, the volatility is no longer used again and the syscall tool starts the libvimtrace program for tracing all system calls in the wordpress and dumping all of them in a logfile called "LogFile.txt". Then the program enters its main loop where it will keep on looping until the tool's user stops it, upon which it will stop the libvimtrace program before exiting to avoid any issues later when restarting it.
+	When the tool starts, it uses the volatility tool to detect if a user has already been sshing to the machine. After getting all the already sshed users, volatility is no longer used again and the syscall tool starts the libvimtrace program for tracing all system calls in the wordpress and dumping all of them in a logfile called "LogFile.txt". Then the program enters its main loop where it will keep on looping until the tool's user stops it, upon which it will stop the libvimtrace program before exiting to avoid any issues later when restarting it.
 
-	In the main loop, the tool will keep on searching the "LogFile.txt" for any new system call traces added by the libvimtrace. The trace is analyzed by a number of functions to check whether it is a result of any user's activity so that it can be recorded. All users that are sshing are saved in a list and are removed from it once they logout.
+	In the main loop, the tool will keep on searching the "LogFile.txt" for any new system call traces added by the libvmtrace. The trace is analyzed by a number of functions to check whether it is a result of any user's activity so that it can be recorded. All users that are sshing are saved in a list and are removed from it once they logout.
 
 	The functions in the main loop check whether each trace added to LogFile.txt by libvimtrace is one of the following and acts accordingly:
 	(1). A new sshed user logging in: It creates a new user object and adds him to list of tracked people. The detection mechanism is if the syscall trace is a syscall execute and the process that is exectued is "/bin/bash". The syscall trace will also contain all information of a user object such as name, ip etc.
 	(2). A user logs out of his ssh connection: It removes the user's object from TRACKED_USERS and destroys it. The detection mechanism is if the syscall trace is a syscall wait with parent being sshd and the bash being the user's bash pid.
 	(3). A user is using a prcoess such as python, top: It saves the pid of the process that was run to the user's list of bash child processes. The detection mechanism is a syscall clone/fork done by the user's bash pid.
-	(4). Input to bash from user or a process: It prints the input and writes it to the logfile of the user. The detection mechanism is a syscall execution of a user's bash or one of its children. User's input is differentiated from a process's output.
-	(5). User process end: It removes the process from the users bash child processes. The detection mechanism is a syscall wait4 with parent being user's bash and child being the process.
+	(4). Input to bash from user or a process: It prints the input and writes it to the logfile of the user. The detection mechanism is a syscall execution of a user's bash or one of its children. User's input is differentiated from process's output.
+	(5). User process ends: It removes the process from the users bash child processes. The detection mechanism is a syscall wait with parent being user's bash and child being the process.
 
-	Bonus
+	Execution
+	---------
+
+		>> python bash_tracker.py one-46903
+
+	BONUS
 	-----
 
-		The attacker can easily use a tool similar to screen which does not create a process that is the child of bash similar to other programs such as python but instead it makes a ui interface that creates a daemon which has no terminal associated with it and will have its own subprocess that could be linked to systemd. Even when the ui interface is terminated, the subprocess will remain on working and will not be detected by the tool which is searching for bash processes that are children of sshds processes. The attacker can disconect anytime and the subprocess will keep on working and will allow him to reconnect it any time later.
+		The attacker can easily use a tool similar to screen which does not create a process that is the child of bash similar to other programs such as python but instead it makes a UI interface that creates a daemon which has no terminal associated with it and will have its own subprocess that could be linked to systemd. Even when the ui interface is terminated, the subprocess will remain working and will not be detected by the tool which is searching for bash processes that are children of sshd processes. The attacker can disconnect anytime and the subprocess will keep on working and will allow him to reconnect it any time later.
 
-		The proper countermeasure would be to use a tool similar to the one in task 1 that will detect any new created processes that pop up at the same time when the interface that can be linked to the user is created. The pid of such processes should be stored and its syscall traces should be tracked.
+		The countermeasure would be to use a tool similar to the one in task 1 that will detect any new created processes that pop up at the same time when the interface that can be linked to the user is created. The pid of such processes should be stored and its syscall traces should be tracked.

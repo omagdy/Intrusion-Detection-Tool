@@ -34,6 +34,7 @@ class SuspectedUser:
 		here = os.path.dirname(os.path.realpath(__file__))
 		subdir = "logs"
 		filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
+		filename = filename.replace(" ", "")
 		filepath = os.path.join(here, subdir, filename)
 		f=open(filepath,"a")
 		f.write(bash_data)
@@ -43,6 +44,7 @@ class SuspectedUser:
 		here = os.path.dirname(os.path.realpath(__file__))
 		subdir = "logs"
 		filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
+		filename = filename.replace(" ", "")
 		filepath = os.path.join(here, subdir, filename)
 		f=open(filepath,"a")
 		f.write('New ssh connection from '+self.ip+'\n')
