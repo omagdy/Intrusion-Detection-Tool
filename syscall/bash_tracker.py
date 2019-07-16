@@ -11,6 +11,7 @@ import signal
 
 GLOBAL_SUB_PROCESS = ''
 TRACKED_USERS=[]
+NON_SIZE_ONE_ENCODES = ["\\u0008\\u001b[K", "    "]
 
 class SuspectedUser:
 
@@ -84,25 +85,25 @@ def check_for_new_sshed_users(trace):
 
 
 def check_for_user_input(trace):
-	if 'buf' not in trace:
-		return
-	if trace['proc_name']=="bash" and trace['syscall_nr']==1:
+	if trace['proc_name']=="bash" and trace['syscall_nr']==1 and 'buf' in trace:
 		uid = trace['uid']
 		pid = trace['pid']
 		fd = trace['fd']
+		buf = trace['buf']
+		size = trace['size']
 		for u in TRACKED_USERS:
 			if u.uid == uid and ((u.bash_pid==pid and fd in [1,2]) or (pid in u.bash_clone_pid)):
-				line = trace['buf'].decode('unicode-escape')
-				if trace['size']==1 and u.prev_buf_was_output and trace['buf'] not in ["\\u0008\\u001b[K", "    "]:
+				line = buf.decode('unicode-escape')
+				if size==1 and u.prev_buf_was_output and buf not in NON_SIZE_ONE_ENCODES:
 					u.write_to_log_file('> '+line)
 					sys.stdout.write('> '+line)
 					sys.stdout.flush()
 					u.prev_buf_was_output=False
-				elif trace['size']==1 and not u.prev_buf_was_output and trace['buf'] not in ["\\u0008\\u001b[K", "    "]:
+				elif size==1 and not u.prev_buf_was_output and buf not in NON_SIZE_ONE_ENCODES:
 					u.write_to_log_file(line)
 					sys.stdout.write(line)
 					sys.stdout.flush()
-				elif not u.prev_buf_was_output and trace['buf'] in ["\\u0008\\u001b[K", "    "]:
+				elif not u.prev_buf_was_output and buf in NON_SIZE_ONE_ENCODES:
 					u.write_to_log_file(line)
 					sys.stdout.write(line)
 					sys.stdout.flush()					
@@ -164,26 +165,29 @@ def stop_libvmtrace():
 
 
 def check_for_already_logged_users():
-	run_vol_ps_aux()
-	for u in TRACKED_USERS:
+	detected_users = run_vol_ps_aux()
+	for u in detected_users:
 		run_vol_ps_tree(u)
 		run_vol_ps_netstat(u)
 
 
+# Gets all sshed users along with their sshd's pid 
 def run_vol_ps_aux():
 	try:
 		sshds=(subprocess.check_output(["/usr/src/volatility/vol.py -f /mnt/mem --profile=LinuxDebian8x64 linux_psaux | grep 'sshd' | grep @"], stderr=subprocess.STDOUT, shell=True)).split('\n')[1:-1]
 	except subprocess.CalledProcessError:
 		sshds=[]
-		return
+	detected_users = []
 	for trace_string in sshds:
 		name = re.search(' (\w+)@',trace_string).group(1)
 		sshd_pid = re.search('^(\d+) ',trace_string).group(1)
 		uid = re.search('\s(\d+)\s',trace_string).group(1)
 		user = SuspectedUser(int(uid), int(sshd_pid), name=name)
-		TRACKED_USERS.append(user)
+		detected_users.append(user)
+	return detected_users
 
 
+# Uses the sshd pid to get the bash pid of each user
 def run_vol_ps_tree(user):
 	try:
 		processes=(subprocess.check_output(["/usr/src/volatility/vol.py -f /mnt/mem --profile=LinuxDebian8x64 linux_pstree -p "+str(user.sshd_pid)], stderr=subprocess.STDOUT, shell=True)).split('\n')[2:-1]
@@ -195,6 +199,7 @@ def run_vol_ps_tree(user):
 		user.bash_pid=int(bash_pid)
 
 
+# Uses the sshd pid to get the IP of each user
 def run_vol_ps_netstat(user):
 	try:
 		networks=(subprocess.check_output(["/usr/src/volatility/vol.py -f /mnt/mem --profile=LinuxDebian8x64 linux_netstat | grep ESTABLISHED | grep "+str(user.sshd_pid)], stderr=subprocess.STDOUT, shell=True)).split('\n')[1:-1]
@@ -208,6 +213,8 @@ def run_vol_ps_netstat(user):
 	user.ip = p
 	user.print_login()
 	user.create_log_file()
+	if user.name and user.bash_pid and user.ip and user.uid:
+		TRACKED_USERS.append(user)
 
 
 try:
@@ -215,6 +222,7 @@ try:
 except IndexError as e:
 	print("VM name input is missing")
 	exit()
+
 subprocess.call(['umount', '/mnt'], stderr=subprocess.STDOUT)
 subprocess.call(['vmifs', 'name', pvm_id, '/mnt'], stderr=subprocess.STDOUT)
 
@@ -223,5 +231,4 @@ signal.signal(signal.SIGINT, exit_the_tool)
 start_libvmtrace(pvm_id)
 check_for_already_logged_users()
 main_loop()
-
 
