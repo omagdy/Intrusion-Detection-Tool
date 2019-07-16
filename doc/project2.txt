@@ -1,24 +1,56 @@
 Group Number : 20
 Group Members : Omar Hussein (90803), Ahmer Ali (87627)
 
+Task 1:
+=======
+
+Task 2:
+=======
+
+	The goal of this task is to modify privileges of a running task with a given PID to root. We do this by borrowing the pointer to credentials of a task which is already root and assigning it to our target task. The details are as follows:
+
+	Linux stores tasks in a linked list of "task_struck" objects. Each of these structures have an objective pointer "real_cred" and a subjective pointer "cred", both of these point to credentials object of type "cred". 
+		
+		- task_struct->real_cred: points to objective context used when task is acted upon
+		- task_struct->cred: points to subject context used when task is acting upon another object
+
+	Using volatility as a library in python, we have the capability to load task objects from PIDs. These objects have all the "task_struck" attributes including "real_cred" and "cred". We load init_task object from the system with PID=1 which is known to be running as root always. Then we obtain physical addresses of its credentials pointers. We do the same process for the target task and obtain its physical addresses for credentials pointers. Then we use libvmi to overwrite values stored in physical addresses of "real_cred" and "cred" of the target task with the corresponding values of the init_task. After this it can be verified in the target system that the target task is now running as root.
+
+	NOTE: Normally in linux, each task has it own unique "struct cred" structure that stores credentials and it is reference counted. A mapping of all tasks and their credentials can reveal any credential sharing and volatility plugin "linux_check_creds" utilizes this method.
+
+	BONUS:
+	------
+
+		- Attacker with root access: An attacker can run a script to detect privilege escalatoin using methods such as following:
+
+			- Periodicall checking process list to detect any changes to credentials of running tasks
+			- Using credential sharing detection using same method as volatility plugin "linux_check_creds"
+
+		Once such process process with escalated privileges has been detected, the attacker can kill or modify the process.
+
+		- Countermeasure: From the perspective of the monitoring system who escalated privileges of the target process, any further change to this process will indicate the some attacker has root access to the system since the process was running as root after privilege escalation and could only be modified by root users. In such a case, the monitor can check for suspicious sshd, tcp or any other processes linked to intruding attacker and take steps to deny root privileges and access to the system to the attacker. In general, given any hint of attacker having root access to the system, the system to be turned off to prevent any malicious usage.
+
+
+
 
 Task 3:
+=======
 
-The aim of task 3 is to show the bash interactions of a certain suspected user. The "syscall" tool does this by tracking the syscall trace of the suspected user's bash process; the bash's pid is also used to differntiate between different users who might use the same uid. 
+	The aim of task 3 is to show the bash interactions of a certain suspected user. The "syscall" tool does this by tracking the syscall trace of the suspected user's bash process; the bash's pid is also used to differntiate between different users who might use the same uid. 
 
-When the tool starts, it uses the volatility tool to detect if a user has already been sshing to the machine once the syscall tool starts. After getting all already sshed users, the syscall tool starts the libvimtrace program for tracing all system calls in the wordpress and dumping all of them in a logfile called "LogFile.txt". Then the program enters its main loop where it will keep on looping until the tool's user stops it upon which it will stop the libvimtrace program before exiting to avoid any issues later when restarting it.
+	When the tool starts, it uses the volatility tool to detect if a user has already been sshing to the machine once the syscall tool starts. After getting all already sshed users, the syscall tool starts the libvimtrace program for tracing all system calls in the wordpress and dumping all of them in a logfile called "LogFile.txt". Then the program enters its main loop where it will keep on looping until the tool's user stops it upon which it will stop the libvimtrace program before exiting to avoid any issues later when restarting it.
 
-In the main loop, the tool will keep on searching the "LogFile.txt" for any new system call traces added by the libvimtrace. The trace is analyzed by a number of functions to check whether it is a result of any user's activity so that it can be recorded. All users that are sshing are saved in a list and are removed from it once they logout.
+	In the main loop, the tool will keep on searching the "LogFile.txt" for any new system call traces added by the libvimtrace. The trace is analyzed by a number of functions to check whether it is a result of any user's activity so that it can be recorded. All users that are sshing are saved in a list and are removed from it once they logout.
 
-The functions in the main loop check whether each trace added to LogFile.txt by libvimtrace is one of the following and acts accordingly:
-(1). A new sshed user logging in: It creates a new user object and adds him to list of tracked people. The detection mechanism is if the syscall trace is a syscall execute and the process that is exectued is "/bin/bash". The syscall trace will also contain all information of a user object such as name, ip etc.
-(2). A user logs out of his ssh connection: It removes the user's object from TRACKED_USERS and destroys it. The detection mechanism is if the syscall trace is a syscall wait with parent being sshd and the bash being the user's bash pid which signals that the bash process is about to be terminated.
-(3). A user is using a prcoess such as python, top: It saves the pid of the process that was run to the user's list of bash child processes. The detection mechanism is a syscall clone/fork done by the user's bash pid.
-(4). Input to bash from user or a process: It prints the input and writes it to the logfile of the user. The detection mechanism is a syscall execution of a user's bash or one of its children. User's input is differentiated from a process's input.
-(5). User process end: It removes the process from the users bash child processes. The detection mechanism is a syscall wait with parent being user's bash and child being the process.
+	The functions in the main loop check whether each trace added to LogFile.txt by libvimtrace is one of the following and acts accordingly:
+	(1). A new sshed user logging in: It creates a new user object and adds him to list of tracked people. The detection mechanism is if the syscall trace is a syscall execute and the process that is exectued is "/bin/bash". The syscall trace will also contain all information of a user object such as name, ip etc.
+	(2). A user logs out of his ssh connection: It removes the user's object from TRACKED_USERS and destroys it. The detection mechanism is if the syscall trace is a syscall wait with parent being sshd and the bash being the user's bash pid which signals that the bash process is about to be terminated.
+	(3). A user is using a prcoess such as python, top: It saves the pid of the process that was run to the user's list of bash child processes. The detection mechanism is a syscall clone/fork done by the user's bash pid.
+	(4). Input to bash from user or a process: It prints the input and writes it to the logfile of the user. The detection mechanism is a syscall execution of a user's bash or one of its children. User's input is differentiated from a process's input.
+	(5). User process end: It removes the process from the users bash child processes. The detection mechanism is a syscall wait with parent being user's bash and child being the process.
 
-Bonus Question for task 3:
+	Bonus Question for task 3:
 
-The attacker can easily use a tool similar to screen which does not create a process that is the child of bash similar to say python but instead it makes a ui interface that creates a daemon which has no terminal associated with it and will have its own subprocess that could be linked to systemd. Even when the ui interface is terminated, the subprocess will remain on working and will not be detected by the tool which is searching for bash processes that are children of sshds processes. The attacker can disconect anytime and the subprocess will keep on working and will allow him to reconnect it any time later.
+	The attacker can easily use a tool similar to screen which does not create a process that is the child of bash similar to say python but instead it makes a ui interface that creates a daemon which has no terminal associated with it and will have its own subprocess that could be linked to systemd. Even when the ui interface is terminated, the subprocess will remain on working and will not be detected by the tool which is searching for bash processes that are children of sshds processes. The attacker can disconect anytime and the subprocess will keep on working and will allow him to reconnect it any time later.
 
-The proper countermeasure would be to use a tool similar to the one in task 1 that will detect any new created processes that pop up at the same time when the interface that can be linked to the user is created. The pid of such processes should be stored and its syscall traces should be tracked.
+	The proper countermeasure would be to use a tool similar to the one in task 1 that will detect any new created processes that pop up at the same time when the interface that can be linked to the user is created. The pid of such processes should be stored and its syscall traces should be tracked.
