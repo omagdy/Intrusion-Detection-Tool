@@ -33,7 +33,8 @@ class SuspectedUser:
 	def write_to_log_file(self, bash_data):
 		here = os.path.dirname(os.path.realpath(__file__))
 		subdir = "logs"
-		filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
+		filename = "{}-{}-{}.txt".format(self.name.strip(), self.ip.strip(), str(self.bash.strip()))
+		# filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
 		filepath = os.path.join(here, subdir, filename)
 		f=open(filepath,"a")
 		f.write(bash_data)
@@ -42,7 +43,8 @@ class SuspectedUser:
 	def create_log_file(self):
 		here = os.path.dirname(os.path.realpath(__file__))
 		subdir = "logs"
-		filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
+		filename = "{}-{}-{}.txt".format(self.name.strip(), self.ip.strip(), str(self.bash.strip()))
+		# filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
 		filepath = os.path.join(here, subdir, filename)
 		f=open(filepath,"a")
 		f.write('New ssh connection from '+self.ip+'\n')

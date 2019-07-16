@@ -135,6 +135,11 @@ Task 3:
 	(4). Input to bash from user or a process: It prints the input and writes it to the logfile of the user. The detection mechanism is a syscall execution of a user's bash or one of its children. User's input is differentiated from process's output.
 	(5). User process ends: It removes the process from the users bash child processes. The detection mechanism is a syscall wait with parent being user's bash and child being the process.
 
+	Execution
+	---------
+
+		>> python bash_tracker.py one-46903
+
 	BONUS
 	-----
 
