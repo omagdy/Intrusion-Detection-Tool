@@ -1,0 +1,43 @@
+Network Connections: 
++  TCP      ::              :   80 ::              :    0 LISTEN                    apache2/1632 
++  TCP      ::              :   80 ::              :    0 LISTEN                    apache2/1633 
++  TCP      ::              :  443 ::              :    0 LISTEN                    apache2/1633 
++  TCP      ::ffff192.168.13.66:   80 ::ffff192.168.13.19:28034 ESTABLISHED               apache2/686  
++  TCP      192.168.13.66   :47272 192.168.13.19   :23569 ESTABLISHED               apache2/688  
++  TCP      ::ffff192.168.13.66:   80 ::ffff192.168.13.19: 1952 ESTABLISHED               apache2/688  
++  TCP      ::              :  443 ::              :    0 LISTEN                    apache2/1632 
++  TCP      ::              :  443 ::              :    0 LISTEN                    apache2/1631 
++  TCP      0.0.0.0         :    0 0.0.0.0         :    0 CLOSE                     apache2/1631 
++  TCP      ::              :   80 ::              :    0 LISTEN                    apache2/1631 
++  TCP      0.0.0.0         :    0 0.0.0.0         :    0 CLOSE                     apache2/1633 
++  TCP      0.0.0.0         :    0 0.0.0.0         :    0 CLOSE                     apache2/1632 
+Process Trees: 
++  ..apache2            1632            33             
++  ..apache2            1633            33             
++  ..apache2            1631            33             
+Processes: 
++  1632   33     33     /usr/sbin/apache2 -k start                                      
++  1631   33     33     /usr/sbin/apache2 -k start                                      
++  1633   33     33     /usr/sbin/apache2 -k start                                      
+Modules: 
+Hidden Modules: 
+Network Connections: 
+-  TCP      192.168.13.66   :47272 192.168.13.19   :23569 ESTABLISHED               apache2/688  
+-  TCP      ::ffff192.168.13.66:   80 ::ffff192.168.13.19: 1952 ESTABLISHED               apache2/688  
+-  TCP      ::ffff192.168.13.66:   80 ::ffff192.168.13.19:28034 ESTABLISHED               apache2/686  
++  TCP      192.168.13.66   :55556 192.168.13.19   : 2842 ESTABLISHED               python3/1636 
++  UNIX 13506                 sudo/1635  
++  UNIX 13509                 sudo/1635  
++  TCP      192.168.13.66   :47272 192.168.13.19   :23569 CLOSE_WAIT                     sh/1634 
++  TCP      192.168.13.66   :47272 192.168.13.19   :23569 CLOSE_WAIT                   sudo/1635 
+Process Trees: 
++  ...sh                1634            33             
++  ....sudo             1635            0              
++  .....python3         1636            0              
+Processes: 
++  1634   33     33     sh -c sudo python3 __rtbot.py                                   
++  1636   0      0      python3 __rtbot.py                                              
++  1635   0      33     sudo python3 __rtbot.py  
+Modules: 
+Hidden Modules: 
++  0xffffffffa0387020 rt

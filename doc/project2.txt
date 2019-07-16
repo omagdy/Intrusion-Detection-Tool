@@ -3,6 +3,81 @@ Group Members : Omar Hussein (90803), Ahmer Ali (87627)
 
 Task 1:
 =======
+	
+	Part (a)
+	--------
+
+		The goal is to build an intrusion detection software using virtual machine introspection. The software should be able to monitor system processes, kernel modules including hidden and network connections. We do this using a python script that executes volatility plugins via subprocess calls repeatedly. The results for each plugin are compared to the last exection and any differences are printed out. This captures any events starting or ending. Following volatility plugins are executed:
+
+			- linux_psaux: Prints a list of running processes
+			- linux_pstree: Prints a list of running processes in tree format
+			- linux_netstat: Prints a list of network connections
+			- linux_lsmod: Prints a list of available kernel modules
+			- linux_hidden_modules: Prints a list of any hidden modules
+
+		These plugins are able to detect even the hidden processes which will not be visible by running equivalent commands directly on the target system.
+
+		Execution:
+
+			The script is located in ids/vmidet.py and has following command line options
+
+				-n NAME, --name NAME  Input target VM name "one-<id>"/ Set value to "ssh" for ssh execution instead of volatility
+			    -r RUNINTERVAL, --runinterval RUNINTERVAL Wait time between repeated command executions (seconds)
+
+			Example: >> python vmidet.py -n 46903 -r 5
+
+
+
+	Part (b)
+	--------
+
+		This task requires us to initate an attack on our wordpress vm using provided instructions and then provide an analysis of the attack using observed events. A copy of detected events after the attack is available in file "ids/attack_files/attack_events.txt". A squence of events is observed after the attack the details of which are as follows:
+
+			- First of all three new apache2 processes appear in process list and a in network list a few tcp connections appear with PIDs correponding to the new apache2 processes
+			- A few seconds later in the next loop of the tool, three new processes appear which are a part of the process tree of one of the apache2 processes. These processes are a python command which a part of the subtree of one of the apache2 processes started earlier
+			- Three new tcp connections appear, one for each of the new processes. Only one has an established connection belonging to "__rtbot.py" file. There are also two new unix sockets detected.
+			- A few seconds later, a hidden module named "rt" is detected
+
+		Obeservations:
+
+			- The apache2 process is somehow able to bring in a milicious python "__rtbot.py" file 
+			- The command is able to run as root user. It can be observed from process list that the executed command is using sudo which is successful. This is possible because the user running apache2 "www-data" has permission to execute sudo without requiring password which is a big vulnerability.
+			- This file is establishing an open tcp connection. 
+			- This file also seems to be executing on memory and is not stored on disk
+			- A hidden module called "rt" is created by the malicious file
+
+		Detailed analysis:
+
+			We performed a detailed analysis of the observed attack and discovered that this attack was performed by Metasploit Penetration Testing Framework which exploited a plugin "website-contact-form-with-file-upload" installed in wordpress. The plugin is outdated and vulnerable. There are also other vulnerabilies in the wordpress installation which can easily be discovered using "wpscan", a penetration testing tool for wordpress.
+
+			Details of the steps performed during this analysis are logged in file "ids/attack_files/analysis_log.txt". Following is an overview of the process:
+
+			- Apache logs reveal a post request from attacker's IP which is found to be a file upload request. The file cannot be found since its being deleted
+			- Wordpress code is modified to save a copy of the file. It can be seen at "ids/attack_files/malicious_upload.php"
+			- The php code in uploaded file is opening a socket client session to receive more data. We run a modified copy of the file to capture the payload being sent as soon as the socket connection is established during attack
+			- The discovered payload file can be seen at "ids/attack_files/malicious_socket_payload.php". A quick google search of the parts of code reveals it to be "bind_tcp" payload of "meterpreter" module of Metasploit.
+			- It can be assumed that the tcp access granted by the payload file is allowing the attacker the capabily to run the malicious python script with root privileges
+
+			We were also able to successfully replicate the attack using Metasploit. A log of this process is available in "ids/attack_files/metasploit_attack.txt"
+
+		Part (c)
+		--------
+
+			This task required us to report any of the hidden artefacts of the attack which are observable from the attacked system itself using built in commands. Our analysis tool from part (a) can be run with string "ssh" instead of vm name. This makes the script to make ssh connection with the vm and execute built in commands and report differences from last executions. The commands run are:
+
+				- ps aux
+				- pstree
+				- lsmod
+				- netstat -tap
+
+			Observations:
+
+				- "ps aux" can only detect the three new apache2 worker processes. It is unable to detect the python script being executed by the attack
+				- "lsmod" is unable to detect the hidden module "rt" created by the python script
+				- netstat -tap is able to detect the following tcp connections from the attacker but cannot report PIDs
+
+					tcp       72      0 wordpress:59481         192.168.13.19:4444      CLOSE_WAIT  -         
+					tcp        0      0 wordpress:60207         192.168.13.19:ircd      ESTABLISHED -               
 
 Task 2:
 =======
@@ -16,10 +91,20 @@ Task 2:
 
 	Using volatility as a library in python, we have the capability to load task objects from PIDs. These objects have all the "task_struck" attributes including "real_cred" and "cred". We load init_task object from the system with PID=1 which is known to be running as root always. Then we obtain physical addresses of its credentials pointers. We do the same process for the target task and obtain its physical addresses for credentials pointers. Then we use libvmi to overwrite values stored in physical addresses of "real_cred" and "cred" of the target task with the corresponding values of the init_task. After this it can be verified in the target system that the target task is now running as root.
 
-	NOTE: Normally in linux, each task has it own unique "struct cred" structure that stores credentials and it is reference counted. A mapping of all tasks and their credentials can reveal any credential sharing and volatility plugin "linux_check_creds" utilizes this method.
+	NOTE: Normally in linux, each task has it own unique "struct cred" structure that stores credentials and it is reference counted. A mapping of all tasks and their credentials can reveal any credential sharing. Volatility plugin "linux_check_creds" utilizes this method.
 
-	BONUS:
-	------
+	Execution
+	---------
+
+		The script is located in vmi/uidchanger.py and has following command line options
+
+			-n NAME, --name NAME  Input target VM name "one-<id>"
+			-p PID, --pid PID     Input target process id "PID"
+
+		Example: >> python uidchanger.py -n 46903 -p 1234
+
+	BONUS
+	-----
 
 		- Attacker with root access: An attacker can run a script to detect privilege escalatoin using methods such as following:
 
@@ -29,7 +114,6 @@ Task 2:
 		Once such process process with escalated privileges has been detected, the attacker can kill or modify the process.
 
 		- Countermeasure: From the perspective of the monitoring system who escalated privileges of the target process, any further change to this process will indicate the some attacker has root access to the system since the process was running as root after privilege escalation and could only be modified by root users. In such a case, the monitor can check for suspicious sshd, tcp or any other processes linked to intruding attacker and take steps to deny root privileges and access to the system to the attacker. In general, given any hint of attacker having root access to the system, the system to be turned off to prevent any malicious usage.
-
 
 
 
