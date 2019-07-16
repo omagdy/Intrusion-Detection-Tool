@@ -213,7 +213,7 @@ def run_vol_ps_netstat(user):
 	user.ip = p
 	user.print_login()
 	user.create_log_file()
-	if user.name and user.bash_pid and user.ip and user.uid:
+	if user.name and user.bash_pid and user.ip and (user.uid!=None):
 		TRACKED_USERS.append(user)
 
 
