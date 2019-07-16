@@ -165,8 +165,8 @@ def stop_libvmtrace():
 
 
 def check_for_already_logged_users():
-	run_vol_ps_aux()
-	for u in TRACKED_USERS:
+	detected_users = run_vol_ps_aux()
+	for u in detected_users:
 		run_vol_ps_tree(u)
 		run_vol_ps_netstat(u)
 
@@ -177,13 +177,14 @@ def run_vol_ps_aux():
 		sshds=(subprocess.check_output(["/usr/src/volatility/vol.py -f /mnt/mem --profile=LinuxDebian8x64 linux_psaux | grep 'sshd' | grep @"], stderr=subprocess.STDOUT, shell=True)).split('\n')[1:-1]
 	except subprocess.CalledProcessError:
 		sshds=[]
-		return
+	detected_users = []
 	for trace_string in sshds:
 		name = re.search(' (\w+)@',trace_string).group(1)
 		sshd_pid = re.search('^(\d+) ',trace_string).group(1)
 		uid = re.search('\s(\d+)\s',trace_string).group(1)
 		user = SuspectedUser(int(uid), int(sshd_pid), name=name)
-		TRACKED_USERS.append(user)
+		detected_users.append(user)
+	return detected_users
 
 
 # Uses the sshd pid to get the bash pid of each user
@@ -212,6 +213,8 @@ def run_vol_ps_netstat(user):
 	user.ip = p
 	user.print_login()
 	user.create_log_file()
+	if user.name and user.bash_pid and user.ip and user.uid:
+		TRACKED_USERS.append(user)
 
 
 try:
@@ -228,5 +231,4 @@ signal.signal(signal.SIGINT, exit_the_tool)
 start_libvmtrace(pvm_id)
 check_for_already_logged_users()
 main_loop()
-
 
