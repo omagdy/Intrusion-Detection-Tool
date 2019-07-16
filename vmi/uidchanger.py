@@ -16,9 +16,13 @@ args = parser.parse_args()
 pvm_name = args.name
 target_pid = args.pid
 
-# Mount the vmifs with the given vm name
-subprocess.call(['umount', '/mnt'], stderr=subprocess.STDOUT)
-subprocess.call(['vmifs', 'name', pvm_name, '/mnt'], stderr=subprocess.STDOUT)
+try:
+    # Mount the vmifs with the given vm name
+    subprocess.call(['umount', '/mnt'], stderr=subprocess.STDOUT)
+    subprocess.call(['vmifs', 'name', pvm_name, '/mnt'], stderr=subprocess.STDOUT)
+except Exception as e:
+    print("Error mounting vm memory image: {}".format(str(e)))
+    sys.exit()
 
 
 sys.path.append("/usr/src/volatility")
@@ -38,10 +42,10 @@ registry.PluginImporter()
 registry.register_global_options(config, addrspace.BaseAddressSpace)
 
 # Function to get a task object for given PID using volatility profile and address space
-def get_task(a, p, pid):
+def get_task(addr_space, profile, pid):
 
-    init_task_addr = p.get_symbol("init_task")
-    init_task = obj.Object("task_struct", vm = a, offset = init_task_addr)
+    init_task_addr = profile.get_symbol("init_task")
+    init_task = obj.Object("task_struct", vm = addr_space, offset = init_task_addr)
 
     tasks = [] # Using a list for potential support of multiple processes with same PID
     for task in init_task.tasks:
@@ -55,46 +59,46 @@ def get_task(a, p, pid):
         return None
     return tasks[0]
 
+# Try catch should be more specific. 
 try:
-
     # Initialize address space (same as a=addrspace() in linux_volshell)
-    a=utils.load_as(config)
-    p=a.profile
+    addr_space=utils.load_as(config)
+    profile=addr_space.profile
 
     # Get target task object
-    target_task = get_task(a, p, target_pid)
+    target_task = get_task(addr_space, profile, target_pid)
     if(not target_task):
-        print("Task with PID {} not found!")
+        print("Task with PID {} not found!".format(target_pid))
         sys.exit()
 
     # Get a task with root permissions, PID 1 is reliably root always
-    task_with_root = get_task(a, p, 1)
+    task_with_root = get_task(addr_space, profile, 1)
 
     # Get virtual addresses for root task credentials pointers
     root_real_cred_va = task_with_root.real_cred.obj_offset
     root_cred_va = task_with_root.cred.obj_offset
 
     # Get Physical addresses for root task credentials pointers
-    root_real_cred_pa = a.vtop(root_real_cred_va)
-    root_cred_pa = a.vtop(root_cred_va)
+    root_real_cred_pa = addr_space.vtop(root_real_cred_va)
+    root_cred_pa = addr_space.vtop(root_cred_va)
 
     # Get virtual addresses for target task credentials pointers
     target_real_cred_va = target_task.real_cred.obj_offset
     target_cred_va = target_task.cred.obj_offset
 
     # Get physical addresses for root task credentials pointers
-    target_real_cred_pa = a.vtop(target_real_cred_va)
-    target_cred_pa = a.vtop(target_cred_va)
+    target_real_cred_pa = addr_space.vtop(target_real_cred_va)
+    target_cred_pa = addr_space.vtop(target_cred_va)
 
-    # Initialize libvmi for writing
+    # Initialize libvmi for writing. Note: the library initialize undesired "[][][]" 
     vmi = Libvmi(pvm_name)
 
     # Write root "cred" pointer value to "cred" attribute of the target task
-    root_cred_pointer = a.read_long_long_phys(root_cred_pa)
+    root_cred_pointer = addr_space.read_long_long_phys(root_cred_pa)
     vmi.write_64_pa(target_cred_pa, root_cred_pointer)
 
     # Write root "real_cred" pointer value to "real_cred" attribute of the target task
-    root_real_cred_pointer = a.read_long_long_phys(root_real_cred_pa)
+    root_real_cred_pointer = addr_space.read_long_long_phys(root_real_cred_pa)
     vmi.write_64_pa(target_real_cred_pa, root_real_cred_pointer)
 
     print("\nSuccess!")
