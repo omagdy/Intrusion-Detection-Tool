@@ -33,7 +33,7 @@ class SuspectedUser:
 	def write_to_log_file(self, bash_data):
 		here = os.path.dirname(os.path.realpath(__file__))
 		subdir = "logs"
-		filename = "{}-{}-{}.txt".format(self.name.strip(), self.ip.strip(), str(self.bash.strip()))
+		filename = "{}-{}-{}.txt".format(self.name.strip(), self.ip.strip(), str(self.bash_pid.strip()))
 		# filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
 		filepath = os.path.join(here, subdir, filename)
 		f=open(filepath,"a")
@@ -43,7 +43,7 @@ class SuspectedUser:
 	def create_log_file(self):
 		here = os.path.dirname(os.path.realpath(__file__))
 		subdir = "logs"
-		filename = "{}-{}-{}.txt".format(self.name.strip(), self.ip.strip(), str(self.bash.strip()))
+		filename = "{}-{}-{}.txt".format(self.name.strip(), self.ip.strip(), str(self.bash_pid.strip()))
 		# filename = self.name+'-'+self.ip+'-'+str(self.bash_pid)+'.txt'
 		filepath = os.path.join(here, subdir, filename)
 		f=open(filepath,"a")
